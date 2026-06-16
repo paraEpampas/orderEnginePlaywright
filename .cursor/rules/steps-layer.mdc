@@ -1,0 +1,66 @@
+---
+description: Rules for Step files — business logic and user-intent actions
+globs: steps/**/*.js
+alwaysApply: false
+---
+
+# Steps Layer Rules — "Validate and Flow"
+
+You are editing a **Step** file. Steps are "smart" — they contain ALL business
+logic AND all assertions. Page Objects are "dumb" (locators + getters only).
+
+## Pattern to Follow
+
+```javascript
+const { BaseSteps } = require('../base.steps');  // adjust depth
+const { FeatureModal } = require('../../pages/{module}/modals/{feature}.modal');
+
+class FeatureSteps extends BaseSteps {
+  constructor(page) {
+    super(page);
+    this.modal = new FeatureModal(page);
+  }
+
+  async fillForm({ field1, field2 }) {
+    if (field1) await this.clearAndFill(this.modal.field1Input, field1);
+    if (field2) await this.selectFromDropdown(this.modal.field2Selector, field2);
+  }
+
+  async submit() {
+    await this.modal.submitButton.click();
+    await this.waitForPageReady();
+  }
+
+  async verifyFieldError(expectedMessage) {
+    await this.verifyErrorMessage(this.modal.fieldError, expectedMessage);
+  }
+}
+
+module.exports = { FeatureSteps };
+```
+
+## Available BaseSteps Helpers — USE THESE
+- `this.waitForPageReady()` — after navigation/submission
+- `this.waitForNetworkIdle(timeout)` — after API calls
+- `this.smartWait()` — wait for spinners/skeletons to disappear (catches timeouts gracefully)
+- `this.waitForStable(locator)` — wait for element to stop re-rendering
+- `this.verifyElementsVisible(...locators)` — smoke checks
+- `this.verifyInputText(locator, expected)` — text content assertions
+- `this.verifyInputValue(locator, expected)` — input value assertions
+- `this.selectFromDropdown(trigger, optionText)` — dropdown selection
+- `this.selectRandomFromDropdown(trigger, options)` — random dropdown
+- `this.clearAndFill(locator, value)` — clear + fill input
+- `this.clearInputField(locator)` — clear + Tab for validation tests
+- `this.verifyErrorMessage(locator, expected)` — error assertions
+- `this.verifyButtonState(locator, enabled)` — button state checks
+
+## STRICT RULES
+- Every class extends `BaseSteps`
+- Page Objects instantiated in constructor
+- ALL assertions (expect, verify*) live here — NEVER in Page Objects
+- Method names = user intent (e.g., `createExpense`, NOT `clickButtonAndFillForm`)
+- NO hardcoded selectors — always reference `this.pageObject.locatorName`
+- NO `page.locator()` calls — all locators come from Page Objects
+- NEVER use `page.waitForTimeout()` — use `waitForPageReady()` or `smartWait()` instead
+- **CAUTION with `waitForPageReady()`** in SPA/micro-frontend apps — it uses `networkidle` which can hang. Prefer `smartWait()` which catches the timeout.
+- ALWAYS export: `module.exports = { ClassName }`

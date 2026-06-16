@@ -1,0 +1,57 @@
+---
+description: Rules for Page Object files — locators and element references only
+globs: pages/**/*.js
+alwaysApply: false
+---
+
+# Page Object Layer Rules — "Find and Do"
+
+You are editing a **Page Object** file. Pages are "dumb" — they contain ONLY
+locator definitions and simple getter methods. ALL assertions live in Steps.
+
+## Pattern to Follow
+
+```javascript
+const { BasePage } = require('../base.page');  // adjust depth as needed
+
+class FeaturePage extends BasePage {
+  constructor(page) {
+    super(page);
+    this.elementName = page.locator("selector");
+    this.rowByName = (name) => page.locator(`tr:has-text("${name}")`);
+  }
+
+  async getFieldValue() {
+    return await this.fieldLocator.textContent();
+  }
+}
+
+module.exports = { FeaturePage };
+```
+
+## BasePage Provides These Methods (use freely)
+- `this.waitForPageReady()` — DOM ready + network idle
+- `this.waitForNetworkIdle(timeout)` — network idle only
+- `this.smartWait({ timeout, additionalSelectors, waitForNetwork })` — wait for all loading spinners/skeletons to disappear
+- `this.waitForStable(locator, stabilityMs, timeout)` — wait for element content to stop changing
+
+## FORBIDDEN in Page Objects
+- NO `expect()` calls — assertions belong EXCLUSIVELY in Steps
+- NO complex business logic, NO click sequences, NO form fills
+- NO importing `@playwright/test` for assertions
+- NO verification methods (`verifyInputText`, `verifyErrorMessage`) — those are BaseSteps methods
+
+## STRICT RULES
+- Every class extends `BasePage`
+- ALL locators defined in `constructor` as `this.name = page.locator(...)`
+- Selector priority: `data-testid` > `aria-label/role` > `text` > semantic CSS
+- NEVER use fragile CSS paths (`div > div > span:nth-child(3)`)
+- NEVER use auto-generated class names (`css-1a2b3c`, `MuiButton-root`)
+- ALWAYS export: `module.exports = { ClassName }`
+- Modal pages go in `pages/{module}/modals/{feature}.modal.js`
+
+## Locator Verification — MANDATORY Before Committing
+- **NEVER guess** metric card titles, column header names, or element roles
+- **ALWAYS verify** against the live DOM via browser inspection or test failure screenshots
+- Common traps: column headers differ from what "sounds right"; view toggles may be `tab` not `button`
+- When a text locator could match multiple elements (sidebar, modals, breadcrumbs), scope with `.first()`, `{ exact: true }`, or a parent container

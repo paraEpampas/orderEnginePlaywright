@@ -1,0 +1,54 @@
+---
+description: Rules for data generators and constants
+globs: data/**/*.js
+alwaysApply: false
+---
+
+# Data Layer Rules
+
+You are editing **data generators** or **constants**.
+
+## generators.js — Rules
+- ALL functions must be deterministic-random (no external dependencies)
+- NO faker.js or other npm packages — use native JS randomization
+- Prefix test-generated items with `AutoTest_` for easy identification and cleanup
+- Export every function individually via `module.exports`
+- Use helper functions: `pickRandom()`, `randomInt()`, `shuffle()`
+
+## constants/ — Rules
+- One file per domain: `order-statuses.js`, `error-messages.js`, etc.
+- Use UPPER_SNAKE_CASE for constant names
+- Group related constants into objects: `const ORDER_STATUSES = { ... }`
+- Error messages go in `error-messages.js` grouped by module
+- Export all constants via `module.exports`
+
+## Recommended Generator Functions
+These are the baseline generators every project should have:
+
+### String Generators
+- `randomAlphanumeric(len)` — random alphanumeric string
+- `randomDigits(len)` — random digit string
+- `randomLetters(len)` — random letter string
+
+### Personal Data Generators
+- `randomFirstName()` — from a curated list
+- `randomLastName()` — from a curated list
+- `randomEmail()` — `{firstName}.{lastName}@test.com`
+- `randomPhoneNumber()` — with country prefix
+
+### Date/Time Generators
+- `randomDate(minYear, maxYear)` — random date in range
+- `randomFutureDate()` — date in the future
+- `randomTime()` — HH:MM format
+- `formatDate(date, format)` — flexible date formatting
+
+### Selection Helpers
+- `pickRandom(array)` — random element from array
+- `shuffleArray(array)` — shuffled copy
+- `takeRandom(array, n)` — n random elements
+
+## Key Principles
+- Test data must NEVER be hardcoded in spec or step files
+- Every generator must produce valid data for the field it targets
+- Date generators must respect business rules (e.g., future dates for bookings)
+- `AutoTest_` prefix enables bulk cleanup of test data in shared environments

@@ -1,0 +1,199 @@
+---
+description: Mandatory feature discovery protocol — MUST complete before writing any tests
+globs:
+alwaysApply: true
+---
+
+# Feature Discovery Protocol — MANDATORY
+
+Before writing tests for ANY module, you MUST complete the Full Feature Inventory.
+This prevents gaps in test coverage. Skipping this protocol is a **critical violation**.
+
+---
+
+## Root Cause Analysis: Why Features Get Missed
+
+These failure modes cause real coverage gaps. Every rule below is derived from
+actual mistakes made during test automation projects.
+
+### Mistake 1: "User-Mentioned Bias"
+The user says "test Documents, Notes, and Spreadsheets." You test exactly those
+three and stop — even though Slides, Search, and Settings were all visible on
+the same page.
+**Rule:** NEVER limit scope to only what the user explicitly names. When told
+"test Module X," that means **every feature inside Module X**.
+
+### Mistake 2: "First-Scroll Blindness"
+An item was the 4th card on a hub page, right next to the other 3. It was skipped
+because exploration fixated on the first visible items.
+**Rule:** When you land on a hub page, count and LIST every card, link, button,
+and section BEFORE doing anything else.
+
+### Mistake 3: "Smoke-Test-as-Complete Fallacy"
+A smoke test verified a card EXISTS on the hub, but then the feature behind
+that card was treated as "covered" with no dedicated tests.
+**Rule:** A smoke test for a parent page does NOT count as coverage for child
+features. If your smoke test checks that a link exists, you MUST follow it.
+
+### Mistake 4: "Hub-Only Tunnel Vision"
+Standalone apps connected to the module were missed because exploration only
+looked at what was directly rendered on the hub page.
+**Rule:** Discovery does not stop at the hub. Also check:
+  - Sidebar navigation for related modules
+  - Dev repo route definitions
+  - Cross-module imports and links
+  - "Create" menu in sidebar for item types
+
+### Mistake 5: "Same-Shape Assumption"
+Two sub-features were assumed to share the same editor layout. All tests
+failed because the second feature had a completely different UI.
+**Rule:** NEVER assume two sub-apps share the same layout. Always inspect
+each feature's UI separately.
+
+### Mistake 6: "Context-Menu Copy-Paste"
+One item type uses "Pin/Unpin" while another uses "Add to favorites." These
+differences were discovered only after tests failed.
+**Rule:** Open the context menu for EACH item type individually and record
+the exact menu items.
+
+### Mistake 7: "No Enumeration Before Implementation"
+Tests were written immediately after a brief look at the hub, before mapping
+all features. Later features were missed due to momentum.
+**Rule:** Produce a written coverage matrix BEFORE writing any code.
+
+### Mistake 8: "First-Module-Gets-Gold, Rest-Gets-Bronze"
+The first module received 12 comprehensive tests. Quality degraded with each
+subsequent module — the last ones got only 5 tests.
+**Rule:** After completing the first module, extract a **Test Parity Baseline**.
+Every subsequent module must match it or document why a category doesn't apply.
+
+### Mistake 9: "Smoke-Only Without Justification"
+Some modules got only smoke tests with no E2E interaction tests. They were
+marked "complete" with only visibility checks.
+**Rule:** Smoke-only is ONLY acceptable with a documented technical blocker.
+"It's complex" is NOT a valid blocker.
+
+### Mistake 10: "Rule-Exists-But-Not-Executed"
+The discovery protocol was documented but never actually followed. Tests were
+written without any of the required gate artifacts.
+**Rule:** The protocol is a **checklist to execute**, not a document to have.
+Every phase MUST produce a visible output artifact.
+
+### Mistake 11: "Delegating Without Protocol"
+Work was delegated to sub-agents without sharing the discovery protocol.
+The delegated work was incomplete.
+**Rule:** When delegating, complete discovery first, include the coverage
+matrix in the delegation, and audit output against the matrix.
+
+### Mistake 12: "Locators Leaking Into Specs"
+When adding "deeper" tests, raw locator calls were written directly in spec files,
+violating the POM architecture.
+**Rule:** EVERY assertion about a UI element MUST go through a Steps method.
+Spec files must contain ZERO `page.locator()` calls.
+
+---
+
+## MANDATORY GATE SYSTEM
+
+You CANNOT proceed to the next phase without producing the required gate artifact.
+
+### GATE 1: ENUMERATION (before any code)
+**Required output:** A numbered list of every discoverable feature, tab, button,
+section, and interactive element for the module.
+**Failure to produce:** STOP. You cannot write any page/steps/spec file.
+
+### GATE 2: COVERAGE MATRIX (before any code)
+**Required output:** A table mapping every discovered feature to its planned test
+coverage (Smoke / E2E / N/A with reason).
+**Failure to produce:** STOP. You cannot write any page/steps/spec file.
+
+### GATE 3: POM COMPLIANCE CHECK (after writing code)
+**Required output:** Verify zero raw locator calls exist in spec files.
+If ANY `page.locator()` / `page.getByRole()` / `page.getByText()` found in specs,
+move them to page objects + steps methods.
+
+### GATE 4: PARITY TABLE (after all modules in a batch are done)
+**Required output:** A comparison table showing every module vs every test category.
+Every cell must be ✅ or N/A-with-reason. No `?` cells.
+
+---
+
+## The Discovery Protocol (Step by Step)
+
+### Phase 1: Hub-Level Enumeration
+
+1. **Navigate to the module's hub page**
+2. **Scroll the ENTIRE page** and list EVERY element:
+   - Cards, promo banners, navigation links, sections
+3. **Click EVERY card/link** to discover its URL, layout, and capabilities
+4. **Check the sidebar** for related modules
+5. **Search the dev repo** for all route definitions
+6. **Write the inventory** before touching any test code
+
+### Phase 1.5: Tab-Level Deep Dive (for tabbed modules)
+
+1. **Click into EVERY tab** via browser
+2. **Record what is inside each tab**: tables, charts, KPIs, filters, pagination, empty states
+3. **Do NOT stop at the tab label.** Click it, wait for content, and snapshot what's inside.
+4. A tab you didn't click is a feature you didn't discover.
+
+### Phase 2: Feature-Level Discovery (Per Sub-Feature)
+
+#### List View
+- [ ] Heading and app name
+- [ ] Navigation tabs — record EXACT names
+- [ ] "New" button menu — click and record ALL creation options
+- [ ] Context menu — click three-dots on an item, record ALL actions
+- [ ] Search, sort, view toggles, bulk actions, empty states
+
+#### Editor/Detail View
+- [ ] Title editing mechanism
+- [ ] Content editing mechanism
+- [ ] Menu bar actions, toolbar buttons
+- [ ] Back navigation button
+
+#### Cross-User Features
+- [ ] Share with another user
+- [ ] Lock/Unlock by owner
+- [ ] Approval workflow
+
+### Phase 3: Dev Repo Cross-Reference
+
+Search the dev repo for features NOT visible in the current UI:
+- Components with `Dialog`, `Modal`, `Popup` in the name → hidden features
+- Route definitions → sub-pages not linked from the main hub
+- Cross-module imports → features connected to other modules
+- Feature flags → features behind conditional rendering
+
+### Phase 4: Coverage Matrix (MUST produce before coding)
+
+| Feature | Smoke | CRUD | Advanced | Context Menu Actions | Notes |
+|---------|-------|------|----------|---------------------|-------|
+| Feature A | x | x | x | Open, Edit, Delete | Full coverage |
+| Feature B | x | x | - | Open, Share | No advanced features |
+| Feature C | x | - | - | N/A | Smoke only — [specific technical reason] |
+
+**Every row must have at least a Smoke test.**
+
+### Phase 5: Test Parity Baseline (after first module)
+
+Extract the test categories from the first module. Every subsequent module
+must match this baseline or document why a category doesn't apply.
+
+---
+
+## STRICT RULES
+
+1. **NEVER limit discovery to user-mentioned features.**
+2. **NEVER start writing tests** until the coverage matrix is complete.
+3. **ALWAYS enumerate before implementing.**
+4. **ALWAYS open the context menu for EACH item type** — they differ.
+5. **ALWAYS open the editor for EACH item type** — they differ structurally.
+6. **ALWAYS check the sidebar and dev repo routes** for hidden features.
+7. **If a smoke test verifies a link exists**, you MUST follow it.
+8. **If an empty state is shown**, still write smoke tests for that state.
+9. **Document any features skipped** with a concrete reason.
+10. **When in doubt, click it.** An unexplored button is an untested feature.
+11. **EVERY module must match the first module's test depth.**
+12. **NEVER mark a module complete with only smoke tests** without a documented blocker.
+13. **ALWAYS produce a parity comparison table** after completing all modules.

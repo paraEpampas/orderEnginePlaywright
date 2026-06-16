@@ -1,0 +1,189 @@
+---
+description: Hard-won patterns from test hardening runs — common failure causes and fixes
+globs:
+alwaysApply: true
+---
+
+# Hardening Lessons — Patterns That Break Tests
+
+These rules come from iterative hardening runs. Every rule below caused real test
+failures. Follow them or repeat the same mistakes.
+
+---
+
+## 1. SPA / Micro-Frontend Navigation
+
+If your application is a **SPA with micro-frontends**, direct `page.goto('/route')`
+may cause `net::ERR_ABORTED` because the browser tries to load the micro-frontend
+before the SPA shell is ready.
+
+**ALWAYS** navigate by clicking sidebar links or using in-app navigation, exactly
+like a real user would:
+
+```javascript
+// WRONG — will ERR_ABORTED in SPA
+await page.goto(baseURL + '/module/feature');
+
+// CORRECT — sidebar navigation respects SPA routing
+await this.nav.moduleLink.click();
+await this.page.waitForLoadState('domcontentloaded');
+```
+
+For modules without sidebar links, use `page.evaluate` to simulate link clicks:
+```javascript
+await page.evaluate((path) => {
+  const a = document.createElement('a');
+  a.href = path;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}, '/module/feature');
+```
+
+Or use `safeGoto()` which navigates via `window.location.href` assignment:
+```javascript
+async safeGoto(url) {
+  await this.page.evaluate((u) => { window.location.href = u; }, url);
+  await this.page.waitForLoadState('domcontentloaded');
+}
+```
+
+---
+
+## 2. Launcher / Hub Pages
+
+Some modules load a **hub/launcher page first**, not the sub-module directly.
+The hub has navigation buttons; sub-module content only appears **after** clicking.
+
+**NEVER** wait for sub-module elements on the hub page — they don't exist there.
+**ALWAYS** wait for the hub title first, then click the correct navigation button.
+
+---
+
+## 3. Non-Deterministic Sidebar State
+
+The sidebar can be expanded or collapsed when a test starts. Handle both states:
+
+```javascript
+await Promise.race([
+  expandButton.waitFor({ state: 'visible', timeout: 15_000 }),
+  collapseButton.waitFor({ state: 'visible', timeout: 15_000 }),
+]).catch(() => {});
+const needsExpand = await expandButton.isVisible().catch(() => false);
+if (needsExpand) await expandButton.click();
+```
+
+**NEVER** assume the sidebar starts in a specific state.
+
+---
+
+## 4. NEVER Assume Locator Text — Verify Against Live DOM
+
+Common locator assumption failures:
+
+| What was assumed | What the DOM actually had |
+|-----------------|--------------------------|
+| `text=This Month` | `text=This Year` |
+| `columnheader Name` | `columnheader Contact` |
+| `button "List"` | `tab "List 518"` (role=tab) |
+| `text=Open Items` | `text=Recent Items` |
+
+**RULE**: Before writing any locator, obtain **ground truth** via:
+1. Browser accessibility snapshot (preferred)
+2. Error context from test failures
+3. Dev repo source code (fallback — may differ from runtime)
+
+**NEVER** guess column headers, metric card titles, or element roles.
+
+---
+
+## 5. Avoid `networkidle` in SPA Micro-Frontends
+
+`page.waitForLoadState('networkidle')` blocks until no network activity for 500ms.
+In SPAs, background requests (WebSockets, polling, lazy chunks) often **never** go
+idle, causing indefinite timeouts.
+
+```javascript
+// DANGEROUS in SPA — can hang indefinitely
+await page.waitForLoadState('networkidle');
+
+// SAFE alternatives
+await page.waitForLoadState('domcontentloaded');
+await page.getByText('Expected Title').waitFor({ state: 'visible', timeout: 30_000 });
+await this.smartWait(); // uses networkidle with .catch(() => {})
+```
+
+**RULE**: Never put `waitForPageReady()` (which uses networkidle) in spec `beforeEach`
+hooks for SPA modules. Use `smartWait()` instead.
+
+---
+
+## 6. Prevent Strict Mode Violations Proactively
+
+Playwright's strict mode fails when a locator matches multiple elements:
+
+| Trap | Fix |
+|------|-----|
+| Generic heading text matches sidebar + page | Add `.first()` or scope to container |
+| Shared text across modules | Use `{ exact: true }` |
+| Hidden sidebar elements | Use specific text selector |
+| Duplicate labels | Scope to `page.locator('main')` container |
+
+**RULE**: When adding a text locator, always ask:
+"Could this text appear anywhere else on the page?"
+If yes, scope with `.first()`, `{ exact: true }`, or a parent container.
+
+---
+
+## 7. Timeout Calibration
+
+Default Playwright timeout (30s) may be insufficient for lazy-loaded modules.
+
+| Module type | Recommended timeout | Action timeout |
+|-------------|-------------------|----------------|
+| Heavy SPA modules | 60-90s | 15-20s |
+| Standard pages | 30s (default) | default |
+| Static/simple pages | 15s | default |
+
+Set these in `playwright.config.js` per-project, NOT via `page.waitForTimeout()`.
+
+---
+
+## 8. Use Error Context for Forensic Diagnosis
+
+When a test fails, Playwright can generate error context containing the
+accessibility snapshot at the moment of failure.
+
+**Diagnostic workflow**:
+1. Read the error context / accessibility snapshot
+2. Search for the expected element (by text, role, or partial name)
+3. Compare what the DOM says vs what the Page Object assumes
+4. Update the Page Object — keep the variable name, change only the selector
+
+**NEVER** guess a fix without reading the error context or inspecting the live page.
+
+---
+
+## 9. Form Dialog Scoping
+
+When creating items via modal/dialog forms, scope all field locators to the
+dialog container. This prevents strict mode violations from background page
+elements with the same labels.
+
+```javascript
+// WRONG — may match background elements
+this.emailField = page.getByLabel('Email');
+
+// CORRECT — scoped to dialog
+this.formDialog = page.locator('[role="dialog"]');
+this.emailField = this.formDialog.getByLabel('Email', { exact: true });
+```
+
+---
+
+## 10. Table Row Identification
+
+When verifying items in tables after CRUD operations:
+- Use unique identifiers (email, full name, generated ID) — not common strings
+- Add `.first()` to `rowByName()` calls to prevent strict mode on large tables
+- Wait for table data to refresh after sort/filter operations using a polling loop

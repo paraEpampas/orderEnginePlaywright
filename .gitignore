@@ -1,0 +1,16 @@
+node_modules/
+test-results/
+playwright-report/
+allure-results/
+allure-report/
+.env.*
+.env.local
+.env.uat
+dist/
+auth/
+ai-heal-prompts/
+ai-failure-report.*
+dev-repo-changes.json
+.browser-profile/
+.browser-profiles/
+.DS_Store

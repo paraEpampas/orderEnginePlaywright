@@ -1,0 +1,84 @@
+---
+description: Auto-healing rules activated when working with test failures or fixing broken tests
+globs: scripts/auto-heal.js, ai-failure-report.*, ai-heal-prompts/**
+alwaysApply: false
+---
+
+# Auto-Healing Rules
+
+You are in **auto-healing mode**. A test has failed and you must diagnose and fix it.
+
+## The Fail-Fix Loop
+
+1. **DETECT** — Read the error message and classify it:
+   - `SELECTOR_ERROR`: Timeout/not found → fix in `pages/*.page.js`
+   - `FLOW_ERROR`: Wrong content/unexpected navigation → fix in `steps/*.steps.js`
+   - `TIMING_ERROR`: Flaky/intermittent → add waits in `steps/*.steps.js`
+   - `ENVIRONMENT_ERROR`: Network/404/auth → no code fix, report the issue
+
+2. **DIAGNOSE** — Gather evidence (in priority order):
+   - **First**: Read `test-results/{test-folder}/error-context.md` — accessibility snapshot at failure
+   - Read the failing Page Object, Step file, and Spec file
+   - Check test-results/ for screenshots, videos, traces
+   - Cross-reference Dev Repository for DOM changes
+   - If insufficient, use browser inspection on the live page
+
+3. **FIX** — Apply surgical changes:
+   - Change ONLY the broken part
+   - Fix in the CORRECT layer
+   - Keep variable names unchanged when updating selectors
+   - Add new step methods instead of modifying existing ones
+
+4. **VERIFY** — Confirm the fix:
+   - Suggest the exact command to re-run the test
+   - Check for cascading effects on related tests
+
+## Common Root Causes (Check These First)
+
+### SPA / Micro-Frontend Applications
+- **`net::ERR_ABORTED`** → Test is using `page.goto()` for a client-side route. Fix: use in-app navigation (sidebar clicks, link simulation) instead of direct URL.
+- **`networkidle` hangs** → Background requests (WebSocket, polling) never go idle. Fix: use `smartWait()` which catches the timeout, or `domcontentloaded` instead.
+- **Micro-frontend not loaded** → Lazy-loaded module hasn't initialized. Fix: wait for a specific element, not just `domcontentloaded`.
+
+### Locator Issues
+- **`strict mode violation`** → Locator matches multiple elements (sidebar, chat panel, duplicate text). Fix: add `.first()`, `{ exact: true }`, or scope to a container.
+- **Locator not found (element exists)** → Assumed text/role doesn't match DOM reality. Fix: read error context, find actual text/role, update Page Object.
+- **Timeout on launcher/hub page** → Waiting for sub-module tabs on the wrong page. Fix: wait for hub title first, then navigate to sub-module.
+
+### Timing Issues
+- **Intermittent failures** → Missing wait after action. Fix: add `waitForPageReady()` or `smartWait()`.
+- **Click intercepted** → Overlay/spinner blocking. Fix: wait for overlay to disappear before clicking.
+
+## Bug vs Fix — The Decision Gate
+
+After diagnosing a failure, classify it as either **HEALABLE** or **BUG**.
+
+### It's HEALABLE (fix the test code) when:
+- A selector/locator no longer matches the DOM (text changed, testid renamed, role changed)
+- Navigation flow changed (new intermediate page, different sidebar state)
+- Timing issue (element loads slower, animation delay)
+- Test data assumption is wrong (dropdown option renamed, status label changed)
+- **Key signal**: The feature WORKS correctly in the browser, but the test can't find/interact with it
+
+### It's a BUG (file a report) when:
+- A button/action that should work does nothing (click succeeds but no state change)
+- API returns 4xx/5xx when it previously returned 200
+- Data submitted via a form is not saved or is saved incorrectly
+- UI shows error state, blank page, or crash after a valid user action
+- A feature in the dev repo is missing from the rendered UI
+- **Key signal**: The UI itself is broken — no test code change would make the workflow succeed
+
+### When it's a BUG:
+1. Do NOT attempt to fix the test — changing assertions to match broken behavior hides the bug
+2. Gather evidence (screenshot, console, network)
+3. Document the bug with: what action was taken, what was expected, what happened, dev repo evidence
+4. Mark the test with a clear comment explaining the known bug
+
+## FORBIDDEN During Healing
+- Do NOT wrap errors in try-catch to suppress them
+- Do NOT add `{ force: true }` to bypass visibility
+- Do NOT add `page.waitForTimeout()` as a band-aid
+- Do NOT rewrite entire files for a single selector change
+- Do NOT skip the test with `test.skip()` instead of fixing
+- Do NOT change test expectations to match bugs
+- Do NOT guess a fix without reading error context or inspecting the live page

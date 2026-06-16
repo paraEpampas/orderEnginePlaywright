@@ -1,0 +1,38 @@
+{
+  "description": "Tests that cannot be automated due to Salesforce SSO or external system dependencies",
+  "reason": "Salesforce SSO authentication is not supported in headless/automated browser runs. These tests require manual SSO login to Salesforce which cannot be scripted.",
+  "tests": [
+    {
+      "id": "salesforce-clone-create",
+      "title": "Salesforce Clone and Create Order for all countries",
+      "file": "tests/functional/archived/salesforce-order-creation.spec.js",
+      "reason": "Requires Salesforce SSO login"
+    },
+    {
+      "id": "salesforce-full-workflow",
+      "title": "Salesforce Full Order Workflow",
+      "file": "tests/functional/archived/salesforce-order-creation.spec.js",
+      "reason": "Requires Salesforce SSO login"
+    },
+    {
+      "id": "salesforce-cpq-search",
+      "title": "Search CPQ orders in Order Engine",
+      "file": "tests/functional/archived/salesforce-order-creation.spec.js",
+      "reason": "Requires Salesforce SSO login"
+    },
+    {
+      "id": "459524",
+      "title": "Test 459524: OE not retrieving Cases, Opportunities, Contacts from Salesforce",
+      "file": "tests/functional/archived/salesforce-search.spec.js",
+      "reason": "Requires Salesforce SSO login + SF_CASE_KEYWORD, SF_OPPORTUNITY_KEYWORD, SF_CONTACT_KEYWORD env vars with live Salesforce data"
+    },
+    {
+      "id": "460660-step3",
+      "title": "Test 460660 Step 3: Header UDF tab after Salesforce UDF removal",
+      "file": "tests/functional/header-udf-soldto.spec.js",
+      "reason": "Requires manual Salesforce config change to remove Header UDFs for account 51005253"
+    }
+  ],
+  "total_unautomatable": 5,
+  "impact": "These 5 tests were previously scheduled across 6 countries = 24 skipped slots removed from the suite"
+}
