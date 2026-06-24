@@ -8,9 +8,8 @@ allure-report/
 .env.uat
 dist/
 auth/
-ai-heal-prompts/
-ai-failure-report.*
 dev-repo-changes.json
 .browser-profile/
 .browser-profiles/
 .DS_Store
+~$*
