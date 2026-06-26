@@ -83,27 +83,100 @@ The framework uses persistent browser contexts with stored authentication state.
 
 An API client (`utils/api-client.js`) creates orders programmatically via the OE API, enabling tests to start with pre-existing orders rather than creating them through the UI every time.
 
-## Setup
+## Prerequisites
 
-### Prerequisites
+| Requirement | Version | Purpose |
+|-------------|---------|---------|
+| **Node.js** | 18.x or higher | Runtime for Playwright and test execution |
+| **npm** | 9.x or higher (ships with Node.js) | Package management |
+| **Chromium** | Installed via Playwright | Browser for test execution |
+| **VPN** | Computacenter VPN connected | Access to SIT/UAT OE environments |
+| **OE User Account** | Valid credentials per country | Authentication for test sessions |
+| **Network Access** | Ports 443 (HTTPS), 7096 (API) | Reach OE web app and order API |
 
-- Node.js 18+
-- Access to Computacenter VPN (required for OE environments)
-- Valid OE user credentials configured in `.env.local` or `.env.uat`
+### Optional (for reporting)
 
-### Installation
+| Tool | Purpose |
+|------|---------|
+| **Allure CLI** | Generate and view Allure reports (`npm install -g allure-commandline`) |
+| **Java 8+** | Required by Allure CLI |
+
+## Dependencies
+
+All dependencies are managed in `package.json` and installed automatically via `npm install`:
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@playwright/test` | ^1.50.0 | Test framework and browser automation |
+| `allure-playwright` | ^3.0.0 | Allure reporting integration |
+| `dotenv` | ^16.4.7 | Environment variable loading from `.env` files |
+| `exceljs` | ^4.4.0 | Excel file generation for test inventory |
+| `xlsx` | ^0.18.5 | Excel file parsing for bulk upload tests |
+
+## Installation
+
+### Step 1: Install Node.js
+
+Download and install Node.js 18+ from [nodejs.org](https://nodejs.org/) or use a version manager:
 
 ```bash
+# macOS (Homebrew)
+brew install node@18
+
+# Windows (Chocolatey)
+choco install nodejs-lts
+
+# Or use nvm (any OS)
+nvm install 18
+nvm use 18
+```
+
+Verify installation:
+
+```bash
+node --version   # Should show v18.x.x or higher
+npm --version    # Should show 9.x.x or higher
+```
+
+### Step 2: Install project dependencies
+
+```bash
+cd orderEnginePlaywright
 npm install
+```
+
+### Step 3: Install Playwright browsers
+
+```bash
 npx playwright install chromium
 ```
 
-### Environment Configuration
+### Step 4: Configure environment
 
-Create a `.env.local` file (not committed to git):
+Create a `.env.local` file in the project root (this file is gitignored — never commit it):
 
 ```env
+# Target environment URL
 BASE_URL=https://orderengine-sit.computacenter.com/oe/orders
+
+# Browser mode
+HEADLESS=true
+
+# Default country (overridden by COUNTRY env var at runtime)
+COUNTRY=UK
+
+# API Configuration (for programmatic order creation in tests)
+API_BASE_URL=http://ccecmsrvs001.computacenter.com:7096
+API_USERNAME=<your-api-user>
+API_PASSWORD=<your-api-password>
+API_CREATE_ENDPOINT=/api/v1/create
+API_GET_ENDPOINT=/api/v1/orders
+```
+
+For UAT environment, create `.env.uat` with the UAT URL:
+
+```env
+BASE_URL=https://orderengine-uat.computacenter.com/oe/orders
 HEADLESS=true
 COUNTRY=UK
 
@@ -114,30 +187,81 @@ API_CREATE_ENDPOINT=/api/v1/create
 API_GET_ENDPOINT=/api/v1/orders
 ```
 
+### Step 5: First-run authentication
+
+On the first run, the framework needs to establish browser authentication profiles. Run a single health-check in headed mode to log in manually:
+
+```bash
+SUITE=health-check COUNTRY=UK HEADLESS=false npx playwright test --workers=1
+```
+
+The browser will open — log in with your OE credentials. The session will be saved to a persistent profile for subsequent headless runs.
+
+Repeat for each country you need to test:
+
+```bash
+SUITE=health-check COUNTRY=FR HEADLESS=false npx playwright test --workers=1
+SUITE=health-check COUNTRY=US HEADLESS=false npx playwright test --workers=1
+SUITE=health-check COUNTRY=DE HEADLESS=false npx playwright test --workers=1
+SUITE=health-check COUNTRY=BE HEADLESS=false npx playwright test --workers=1
+SUITE=health-check COUNTRY=NL HEADLESS=false npx playwright test --workers=1
+```
+
 ## Running Tests
 
-### Full Regression Suite (all countries)
+### Using npm scripts (recommended)
+
+```bash
+# Health check — all countries
+npm run test:health-check
+
+# Health check — single country
+npm run test:health-check:uk
+npm run test:health-check:fr
+
+# Full regression — single country
+npm run test:regression:uk
+
+# Run on UAT instead of SIT
+npm run test:uat
+
+# Headed mode (visible browser)
+npm run test:headed
+
+# Open last HTML report
+npm run report
+```
+
+### Using environment variables directly
+
+#### Full Regression-2 Suite (all countries)
 
 ```bash
 SUITE=regression-2 COUNTRY=ALL npx playwright test
 ```
 
-### Single Country
+#### Single Country
 
 ```bash
 SUITE=regression-2 COUNTRY=UK npx playwright test
 ```
 
-### Health Check
+#### Health Check
 
 ```bash
 SUITE=health-check COUNTRY=ALL npx playwright test
 ```
 
-### Specific Test File
+#### Specific Test File
 
 ```bash
 SUITE=regression-2 COUNTRY=FR npx playwright test tests/functional/france-postcode-checker.spec.js
+```
+
+#### Headed mode with single worker (for debugging)
+
+```bash
+SUITE=regression-2 COUNTRY=UK HEADLESS=false npx playwright test --workers=1 tests/functional/zbun-pricing.spec.js
 ```
 
 ### Configuration Options
@@ -149,6 +273,26 @@ SUITE=regression-2 COUNTRY=FR npx playwright test tests/functional/france-postco
 | `ENV` | `local` | Environment: `local` (SIT) or `uat` |
 | `HEADLESS` | `true` | Run headless (`true`/`false`) |
 | `THREADS` | `3` | Number of parallel workers |
+
+### All Available npm Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm test` | Run default Playwright tests |
+| `npm run test:headed` | Run with visible browser |
+| `npm run test:health-check` | Health check all countries |
+| `npm run test:health-check:uk` | Health check UK only |
+| `npm run test:regression` | Full regression all countries |
+| `npm run test:regression:uk` | Regression UK only |
+| `npm run test:uk` | Run tests for UK |
+| `npm run test:fr` | Run tests for FR |
+| `npm run test:uat` | Run on UAT environment |
+| `npm run test:smoke` | Run smoke-tagged tests |
+| `npm run test:functional` | Run functional-tagged tests |
+| `npm run report` | Open HTML report in browser |
+| `npm run inventory` | Regenerate test inventory Excel |
+| `npm run allure:generate` | Generate Allure report |
+| `npm run allure:open` | Open Allure report |
 
 ## Reporting
 
@@ -213,3 +357,36 @@ Some tests require specific materials/accounts to exist in the target environmen
 - **ZBUN/ZMAT materials** — configured per country in `zbun-pricing.spec.js`
 - **Sold-to accounts** — with contracts, for contract-sourcing tests
 - **API order creation** — requires API credentials in `.env`
+
+## Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `net::ERR_NAME_NOT_RESOLVED` | VPN not connected or DNS issues | Connect to Computacenter VPN and retry |
+| `Navigation timeout exceeded` | OE environment is down or slow | Check environment status; increase `navigationTimeout` in config if needed |
+| `SingletonLock` error | Browser profile locked by another process | Kill stale Chromium processes: `pkill -f chromium` |
+| Tests fail with "not logged in" | Browser profile session expired | Re-run health-check in headed mode to re-authenticate |
+| `Cannot find module` errors | Dependencies not installed | Run `npm install` |
+| Tests skip unexpectedly | Missing test data for that country | Check `test.skip` conditions in the spec file; provision the required data |
+| All tests skipped for a country | Wrong `SUITE` or `COUNTRY` value | Verify env vars: `SUITE=regression-2 COUNTRY=UK` |
+| Allure report empty | Results not generated | Run tests first, then `npm run allure:generate` |
+
+## Quick Start (TL;DR)
+
+```bash
+# 1. Install
+npm install && npx playwright install chromium
+
+# 2. Create .env.local (copy from template above)
+
+# 3. Connect VPN
+
+# 4. First-time auth (headed, logs you in)
+SUITE=health-check COUNTRY=UK HEADLESS=false npx playwright test --workers=1
+
+# 5. Run the full regression suite
+SUITE=regression-2 COUNTRY=ALL npx playwright test
+
+# 6. View report
+npm run report
+```
