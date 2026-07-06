@@ -34,6 +34,35 @@ End-to-end test automation framework for the Computacenter Order Engine (OE2), b
 | `regression` | `@regression` | Full regression across all test directories |
 | `regression-2` | `@regression-2` | Functional regression — primary suite |
 
+### SIT Health Check Automation
+
+The **health-check** suite provides a quick sanity pass to verify the SIT environment is operational. It validates core user workflows end-to-end.
+
+| # | Test Case | Spec File |
+|---|-----------|-----------|
+| 1 | Complete order creation workflow with Quick Add | `order-creation.spec.js` |
+| 2 | Change sold-to immediately after save | `change-sold-to-account.spec.js` |
+| 3 | Change sold-to without preserving pricing | `change-sold-to-account.spec.js` |
+| 4 | Verify copy order button and modal workflow | `copy-order.spec.js` |
+| 5 | Verify bulk upload workflow with Excel file | `bulk-upload.spec.js` |
+| 6 | MAP Link — verify MAP link opens and SAP number extraction | `map-link.spec.js` |
+
+**Summary:**
+
+- **6 health-check test cases** automated
+- Executed across **6 countries** (UK, FR, US, DE, BE, NL) = **36 total executions** per run
+- **Playwright only** — these tests are automated exclusively in the Playwright framework. There is no Selenium implementation; the entire automation suite (health checks and regression) is built solely on Playwright.
+
+**Run the health checks:**
+
+```bash
+# All countries
+SUITE=health-check COUNTRY=ALL npx playwright test
+
+# Single country
+SUITE=health-check COUNTRY=UK npx playwright test
+```
+
 ## Architecture
 
 ```
