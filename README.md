@@ -86,7 +86,6 @@ orderEnginePlaywright/
 ├── test-data/
 │   └── bulk-upload/       → Excel files for bulk upload testing (per country)
 ├── utils/                 → Utilities (API client, network capture, browser setup)
-├── scripts/               → Helper scripts
 ├── playwright.config.js   → Dynamic project configuration
 ├── global-setup.js        → Pre-run setup
 └── global-teardown.js     → Post-run cleanup
@@ -139,8 +138,6 @@ All dependencies are managed in `package.json` and installed automatically via `
 | `@playwright/test` | ^1.50.0 | Test framework and browser automation |
 | `allure-playwright` | ^3.0.0 | Allure reporting integration |
 | `dotenv` | ^16.4.7 | Environment variable loading from `.env` files |
-| `exceljs` | ^4.4.0 | Excel file generation for test inventory |
-| `xlsx` | ^0.18.5 | Excel file parsing for bulk upload tests |
 
 ## Installation
 
@@ -319,7 +316,6 @@ SUITE=regression-2 COUNTRY=UK HEADLESS=false npx playwright test --workers=1 tes
 | `npm run test:smoke` | Run smoke-tagged tests |
 | `npm run test:functional` | Run functional-tagged tests |
 | `npm run report` | Open HTML report in browser |
-| `npm run inventory` | Regenerate test inventory Excel |
 | `npm run allure:generate` | Generate Allure report |
 | `npm run allure:open` | Open Allure report |
 
